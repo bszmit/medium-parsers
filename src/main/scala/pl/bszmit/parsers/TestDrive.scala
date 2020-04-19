@@ -5,40 +5,38 @@ import atto._
 
 object TestDrive extends App {
 
-  lazy val Expr: Parser[Double] = {
+  lazy val Expr: Parser[Double] = delay {
     val p1 = for {
-      lhs <- Term
+      lhs <- Expr
       _   <- char('+')
-      rhs <- Expr
+      rhs <- Term
     } yield lhs + rhs
     val p2 = for {
-      lhs <- Term
+      lhs <- Expr
       _   <- char('-')
-      rhs <- Expr
+      rhs <- Term
     } yield lhs - rhs
     val p3 = Term
     p1 | p2 | p3
   }
 
-  lazy val Term: Parser[Double] = {
+  lazy val Term: Parser[Double] = delay {
     val p1 = for {
-      lhs <- double
+      lhs <- Term
       _   <- char('*')
-      rhs <- Term
+      rhs <- double
     } yield lhs * rhs
     val p2 = for {
-      lhs <- double
+      lhs <- Term
       _   <- char('/')
-      rhs <- Term
+      rhs <- double
     } yield lhs / rhs
     val p3 = double
     p1 | p2 | p3
   }
 
   List(
-    Expr.parse("5-2").done, // Done(,3.0)
-    Expr.parse("6-12/2").done, // Done(,0.0)
-    Expr.parse("1-2-3").done, // Done(,2.0) -- expected -4.0
-    Expr.parse("16/4/2").done, // Done(,8.0) -- expected 2.0
+    Expr.parse("1-2-3").done, // it never ends...
+    Expr.parse("1").done, // it never ends...
   ).foreach(println)
 }

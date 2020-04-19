@@ -5,38 +5,50 @@ import atto._
 
 object TestDrive extends App {
 
-  lazy val Expr: Parser[Double] = delay {
+  lazy val Expr: Parser[Double] = for {
+    lhs  <- Term
+    next <- Expr_prim
+  } yield next(lhs)
+
+  lazy val Expr_prim: Parser[Double => Double] = {
     val p1 = for {
-      lhs <- Expr
-      _   <- char('+')
-      rhs <- Term
-    } yield lhs + rhs
+      _    <- char('+')
+      rhs  <- Term
+      next <- Expr_prim
+    } yield (lhs: Double) => next(lhs + rhs)
     val p2 = for {
-      lhs <- Expr
-      _   <- char('-')
-      rhs <- Term
-    } yield lhs - rhs
-    val p3 = Term
+      _    <- char('-')
+      rhs  <- Term
+      next <- Expr_prim
+    } yield (lhs: Double) => next(lhs - rhs)
+    val p3 = ok((lhs: Double) => lhs)
     p1 | p2 | p3
   }
 
-  lazy val Term: Parser[Double] = delay {
+  lazy val Term: Parser[Double] = for {
+    lhs  <- double
+    next <- Term_prim
+  } yield next(lhs)
+
+  lazy val Term_prim: Parser[Double => Double] = {
     val p1 = for {
-      lhs <- Term
-      _   <- char('*')
-      rhs <- double
-    } yield lhs * rhs
+      _    <- char('*')
+      rhs  <- double
+      next <- Term_prim
+    } yield (lhs: Double) => next(lhs * rhs)
     val p2 = for {
-      lhs <- Term
-      _   <- char('/')
-      rhs <- double
-    } yield lhs / rhs
-    val p3 = double
+      _    <- char('/')
+      rhs  <- double
+      next <- Term_prim
+    } yield (lhs: Double) => next(lhs / rhs)
+    val p3 = ok((lhs: Double) => lhs)
     p1 | p2 | p3
   }
 
   List(
-    Expr.parse("1-2-3").done, // it never ends...
-    Expr.parse("1").done, // it never ends...
+    Expr.parse("1").done, // Done(,1.0)
+    Expr.parse("1-2-3").done, // Done(,-4.0)
+    Expr.parse("16/4/2").done, // Done(,2.0)
+    Expr.parse("1+2+12/4-3*3-2-1").done, // Done(,-6.0)
   ).foreach(println)
 }
